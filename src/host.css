@@ -1,0 +1,67 @@
+#players {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+}
+#players .player {
+  position: absolute;
+  width: 25vmin;
+  height: 25vmin;
+  background: top / contain no-repeat;
+  display: flex;
+  justify-content: center;
+}
+#players .player div {
+  flex-shrink: 0;
+  font-size: small;
+  text-align: center;
+  position: absolute;
+  bottom: 12;
+  background-color: hsla(0, 0%, 90%, 80%);
+}
+#players .player span {
+  text-shadow: 0 0 30px white, 0 0 30px white, 0 0 30px white, 0 0 30px white;
+}
+#players .player:nth-child(1) {
+  bottom: 5vh;
+  left: 26vw;
+}
+#players .player:nth-child(2) {
+  bottom: 5vh;
+  right: 26vw;
+}
+#players .player:nth-child(3) {
+  top: 35vh;
+  left: 5vw;
+}
+#players .player:nth-child(4) {
+  top: 35vh;
+  right: 5vw;
+}
+#players .player:nth-child(5) {
+  bottom: 5vh;
+  left: 5vw;
+}
+#players .player:nth-child(6) {
+  bottom: 5vh;
+  right: 5vw;
+}
+@keyframes code {
+  0% {
+    transform: rotate(-6deg);
+  }
+  50% {
+    transform: rotate(6deg);
+  }
+  100% {
+    transform: rotate(-6deg);
+  }
+}
+#code {
+  font-size: 10vmin;
+  /* transform: rotate(-30deg); */
+  animation: code 2s cubic-bezier(0.645, 0.045, 0.355, 1);
+  animation-iteration-count: infinite;
+}
