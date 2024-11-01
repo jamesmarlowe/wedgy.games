@@ -1,6 +1,8 @@
 credentials.conf
 metadata.json
 node_modules
+.DS_Store
+dist
 
 # wrangler files
 .wrangler

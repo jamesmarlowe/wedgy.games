@@ -1,10 +1,11 @@
 name = "chat"
-compatibility_date = "2024-01-01"
-main = "./src/chat.mjs"
-route = { pattern = "intro.wedgy.games", zone_name = "wedgy.games" }
+compatibility_flags = [ "nodejs_compat" ]
+compatibility_date = "2024-09-23"
+main = "./src/server.mjs"
+route = { pattern = "searchparty.wedgy.games/api/*", zone_name = "wedgy.games" }
 
-[build]
-command = "npm i && npx webpack"
+#[build]
+#command = "npm i && npx webpack && npx wrangler pages deploy ./dist --project-name intro"
 
 [durable_objects]
 bindings = [

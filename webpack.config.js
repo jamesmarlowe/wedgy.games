@@ -4,8 +4,8 @@ const HtmlWebpackPlugin = require("html-webpack-plugin");
 const InlineSourceWebpackPlugin = require('inline-source-webpack-plugin');
 const CopyPlugin = require("copy-webpack-plugin");
 
-const css = {
-    entry: "./src/stylesheet.css",
+const static = {
+    entry: ["./static/stylesheet.css"],
     mode: "production",
     module: {
       rules: [
@@ -16,6 +16,7 @@ const css = {
       ],
     },
     optimization: {
+      minimize: true,
       minimizer: [
         // For webpack@5 you can use the `...` syntax to extend existing minimizers (i.e. `terser-webpack-plugin`), uncomment the next line
         // `...`,
@@ -23,10 +24,14 @@ const css = {
       ],
     },
     plugins: [
-        new CopyPlugin({ patterns: [{ from: "./static", to: "" }] }),
+        new CopyPlugin({ patterns: [
+            { from: "./public", to: "" },
+            { from: "./static", to: "static" },
+            { from: "./.well-known", to: ".well-known" }
+        ] }),
         new MiniCssExtractPlugin(),
         new HtmlWebpackPlugin({
-          filename: `player.html`,
+          filename: `index.html`,
           template: "./src/index.ejs",
           inlineSource: ".(js|css)$",
           minify: {
@@ -41,18 +46,29 @@ const css = {
       ],
   };
 
-const server = {
-    entry: "./src/chat.mjs",
-    target: "node-webkit",
-    mode: "development",
-    devtool: "source-map",
+const player = {
+    entry: "./src/player.js",
+    target: "web",
+    mode: "production",
     output: {
-      filename: "worker.js",
-      sourceMapFilename: "worker.js.map"
+      filename: "uhhh.js",
     },
     optimization: {
       minimize: true
     },
   };
 
-  module.exports = [server, css];
+const server = {
+      entry: "./src/chat.mjs",
+      target: "web",
+      mode: "production",
+      output: {
+        filename: "chat.js",
+        libraryTarget: 'commonjs',
+      },
+      optimization: {
+        minimize: true
+      },
+    };
+
+  module.exports = [player, static];
