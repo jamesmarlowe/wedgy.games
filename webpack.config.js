@@ -33,7 +33,7 @@ const static = {
         new HtmlWebpackPlugin({
           filename: `index.html`,
           template: "./src/index.ejs",
-          inlineSource: ".(js|css)$",
+          inlineSource: ".(css)$",
           minify: {
             collapseWhitespace: true,
           },

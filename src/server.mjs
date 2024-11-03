@@ -56,8 +56,7 @@ async function handleApiRequest(path, request, env) {
         // The request is for just "/api/room", with no ID.
         if (request.method == "POST") {
           let name = crypto.randomBytes(2).toString("hex");
-          // let id = env.rooms.idFromString(name);
-          return new Response(name, {headers: {"Access-Control-Allow-Origin": "*"}});
+          return new Response(name);
         } else {
           return new Response("Method not allowed", {status: 405});
         }
@@ -151,14 +150,6 @@ export class ChatRoom {
     // no need to store this to disk since we assume if the object is destroyed and recreated, much
     // more than a millisecond will have gone by.
     this.lastTimestamp = 0;
-
-    // searchparty vars //
-    this.usedThemes = [];
-    this.usedWords = [];
-    this.voteOptions = [];
-    this.round = 0;
-    this.availableWords = [];
-    this.voting = false;
   }
 
   // The system will call fetch() whenever an HTTP request is sent to this Object. Such requests
@@ -247,6 +238,49 @@ export class ChatRoom {
 
   }
 
+  getKeyFromSessions = (key) => 
+    R.pipe(
+      Array.from,
+      R.pluck(1),
+      R.pluck(key)
+    )(this.sessions);
+
+  putInSession = (socket, key, value) => {
+    this.sessions.get(socket)[key] = value
+    socket.serializeAttachment({
+      ...socket.deserializeAttachment(),
+      [key]: value
+    });
+  }
+
+  incrementSessionCount = async (socket, key) => {
+    const value = (this.sessions.get(socket)[key]||0)+ 1
+    this.sessions.get(socket)[key] = value
+    socket.serializeAttachment({
+      ...socket.deserializeAttachment(),
+      [key]: value
+    });
+  }
+
+  getSessionsWhereEq = (key, value) =>
+    R.pipe(
+      Array.from,
+      R.filter(([_, obj]) => obj[key] === value),
+      R.map(R.head)
+    )(this.sessions);
+
+  clearRound = async () => {
+    this.sessions.forEach((sess, socket) => {
+      sess.words = 0;
+      sess.words = "";
+      socket.serializeAttachment({
+        ...socket.deserializeAttachment(),
+        words: 0,
+        vote: "",
+      });
+    });
+  }
+
   async webSocketMessage(webSocket, msg) {
     try {
       let session = this.sessions.get(webSocket);
@@ -313,23 +347,16 @@ export class ChatRoom {
           break;
         case EVENTS.VOTE:
           if ((await this.storage.get("voteOptions")).includes(data.selection)) {
-            session.vote = data.selection;
-            webSocket.serializeAttachment({
-              ...webSocket.deserializeAttachment(),
-              vote: data.selection
-            });
+            this.putInSession(webSocket, "vote", data.selection)
             this.broadcast({event: EVENTS.VOTE, player: session.name, selection: data.selection});
             if (Array.from(this.sessions).every((p) => p[1].vote)) {
               this.broadcast({event: EVENTS.VOTE_OVER});
               await this.storage.put("voting", false);
-              const theme = mode(R.pluck('vote',R.pluck(1, Array.from(this.sessions))));
-              Array.from(this.sessions).forEach((p) => p[1].vote = "");
-              webSocket.serializeAttachment({
-                ...webSocket.deserializeAttachment(),
-                vote: ""
-              });
+              this.broadcast({msg:"get theme", sessions:Array.from(this.sessions), vote:this.getKeyFromSessions("vote")})
+              const theme = mode(this.getKeyFromSessions("vote"));
               const usedThemes = await this.storage.get("usedThemes")
               await this.storage.put("usedThemes", usedThemes.concat(theme));
+              this.broadcast({msg:"shuffle"})
               const words = shuffle(THEMED_WORDS[theme]).slice(
                 -WORDS_PER_ROUND[this.sessions.size]
               );
@@ -348,7 +375,7 @@ export class ChatRoom {
                 theme,
                 words,
                 puzzle,
-                round: this.round}
+                round: await this.storage.get("round") || 0}
               );
             }
           }
@@ -360,22 +387,19 @@ export class ChatRoom {
               [data.word],
               availableWords
             );
-            session.words += 1;
-            webSocket.serializeAttachment({
-              ...webSocket.deserializeAttachment(),
-              words: session.words + 1
-            });
             await this.storage.put("availableWords", availableWords)
+            await this.incrementSessionCount(webSocket, "words")
+            this.broadcast({msg: this.getKeyFromSessions("words")})
             this.broadcast({event: EVENTS.FOUND_WORD, word:data.word, start:data.start, end:data.end, player: {color: colorMap[session.name], name: session.name}});
-            this.broadcast({event: EVENTS.CHANGE_SCORE, player: {color: colorMap[session.name], name: session.name, rounds:session.rounds}});
             if (availableWords.length === 0) {
             // if (availableWords.length) { //!!!!TODO!!!!!this is to make testing faster
-              const max = Math.max(...R.pluck("words",R.pluck(1, Array.from(this.sessions))));
-              this.broadcast({max:max});
-              const winners = R.filter(R.whereEq({words:max}),R.pluck(1, Array.from(this.sessions)))
+              const max = Math.max(...this.getKeyFromSessions("words"));
+              this.broadcast({max:max, sessions:Array.from(this.sessions)});
+              // const winners = R.filter(R.whereEq({words:max}),R.pluck(1, Array.from(this.sessions)))
+              const winners = this.getSessionsWhereEq("words", max)
               this.broadcast({winners:winners});
               if (winners.length > 1) {
-                const theme = await this.storage.get("usedThemes").at(-1)
+                const theme = (await this.storage.get("usedThemes")).at(-1)
                 const words = R.without(
                   await this.storage.get("usedWords"),
                   shuffle(THEMED_WORDS[theme])
@@ -394,24 +418,20 @@ export class ChatRoom {
                   words,
                   puzzle,
                   round: await this.storage.get("round")
-              });
+                });
               } else {
                 let round = await this.storage.get("round") + 1
                 await this.storage.put("round", round)
-                // R.map((p) => {
-                //   p.rounds += 1;
-                // }, winners);
-                // R.map((p) => {
-                //   p.words = 0;
-                //   this.broadcast({event: EVENTS.CHANGE_SCORE, p});
-                // }, this.players);
-                // const maxRound = Math.max(
-                //   ...R.pluck("rounds", this.players)
-                // );
+                await this.clearRound();
+                await this.incrementSessionCount(winners[0],"round")
+                const roundWinner = this.sessions.get(winners[0])
+                this.broadcast({event: EVENTS.CHANGE_SCORE, player: {color: colorMap[roundWinner.name], name: roundWinner.name, rounds:roundWinner.rounds}});
                 if (round < 3) {
                   this.sendThemes();
                 } else {
-                  this.broadcast({event: EVENTS.GAME_OVER, session});
+                  const maxRound =  Math.max(...this.getKeyFromSessions("rounds"))
+                  const gameWinner = this.sessions.get(this.getSessionsWhereEq("rounds", maxRound)).name
+                  this.broadcast({event: EVENTS.GAME_OVER, name:gameWinner});
                   this.resetRoom();
                 }
               }
@@ -421,30 +441,6 @@ export class ChatRoom {
         default:
           return;
       }
-
-      // Construct sanitized message for storage and broadcast.
-      // data = { name: session.name, message: "" + data.message };
-
-      // Block people from sending overly long messages. This is also enforced on the client,
-      // so to trigger this the user must be bypassing the client code.
-      // if (data.message.length > 256) {
-      //   webSocket.send(JSON.stringify({error: "Message too long."}));
-      //   return;
-      // }
-
-      // Add timestamp. Here's where this.lastTimestamp comes in -- if we receive a bunch of
-      // messages at the same time (or if the clock somehow goes backwards????), we'll assign
-      // them sequential timestamps, so at least the ordering is maintained.
-      // data.timestamp = Math.max(Date.now(), this.lastTimestamp + 1);
-      // this.lastTimestamp = data.timestamp;
-
-      // Broadcast the message to all other WebSockets.
-      // let dataStr = JSON.stringify(data);
-      // this.broadcast(dataStr);
-
-      // Save message.
-      // let key = new Date(data.timestamp).toISOString();
-      // await this.storage.put(key, dataStr);
     } catch (err) {
       // Report any exceptions directly back to the client. As with our handleErrors() this
       // probably isn't what you'd want to do in production, but it's convenient when testing.

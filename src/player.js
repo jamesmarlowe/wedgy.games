@@ -183,7 +183,7 @@ function join() {
   });
 
   ws.addEventListener("message", event => {
-    console.log("websocket message")
+    console.log("websocket message", event)
     let data = JSON.parse(event.data);
     console.log(data)
     if (data.error) {
@@ -231,6 +231,9 @@ function join() {
             break;
         case EVENTS.CHANGE_SCORE:
             changeScore(data.player)
+            break;
+        case EVENTS.POST_ROUND:
+            tieTransition(data.theme, data.words, data.puzzle, data.round);
             break;
         case EVENTS.GAME_OVER:
             showGameOver(data.session.name)
@@ -313,6 +316,15 @@ const stopLobby = () => {
     // document
     //   .querySelector(containerDiv)
     //   .classList.remove("playing", "joining", "game");
+  };
+
+const tieTransition = (...arguments_) => {
+    document.querySelector(
+      containerDiv
+    ).innerHTML += `<div id="winner"><h1>No winner yet...</h1></div>`;
+    setTimeout(() => {
+      startGame(false)(...arguments_);
+    }, 3000);
   };
 
 const updateVote = (nplayer, selection) => {
