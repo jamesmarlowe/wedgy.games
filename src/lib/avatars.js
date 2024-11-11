@@ -87,7 +87,6 @@ const flipObject = R.pipe(
 export const colorMap = flipObject(avatars);
 
 export const pickPlayer = R.pipe(
-  R.pluck("color"),
   R.difference(colors),
   shuffle,
   R.head,

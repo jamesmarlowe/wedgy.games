@@ -272,7 +272,7 @@ export class ChatRoom {
   clearRound = async () => {
     this.sessions.forEach((sess, socket) => {
       sess.words = 0;
-      sess.words = "";
+      sess.vote = "";
       socket.serializeAttachment({
         ...socket.deserializeAttachment(),
         words: 0,
@@ -308,7 +308,8 @@ export class ChatRoom {
       if (!session.name) {
         // The first message the client sends is the user info message with their name. Save it
         // into their session object.
-        session.name = pickPlayer([]).avatar;
+        session.name = pickPlayer(this.getKeyFromSessions("color")).avatar;
+        session.color = colorMap[session.name]
         // attach name to the webSocket so it survives hibernation
         webSocket.serializeAttachment({
           ...webSocket.deserializeAttachment(),
@@ -325,7 +326,7 @@ export class ChatRoom {
         delete session.blockedMessages;
 
         // Broadcast to all other connections that this user has joined.
-        this.broadcast({joined: session.name});
+        this.broadcast({joined: session.name, prev:this.getKeyFromSessions("color")});
 
         webSocket.send(JSON.stringify({ready: true, you: session.name, color:colorMap[session.name]}));
         return;

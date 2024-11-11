@@ -13,7 +13,14 @@ const containerDiv = "#container";
 let hostname = window.location.host;
 if (hostname == "") {
   // Probably testing the HTML locally.
-  hostname = "intro.wedgy.games";
+  hostname = "searchparty.wedgy.games";
+}
+
+if ((screen.width || 0) < (screen.height || 0)) {
+    if (screen.orientation && screen.orientation.lock){
+        await screen.orientation.lock("portrait");
+        toggleFullScreen();
+    }
 }
 
 // function startNameChooser() {

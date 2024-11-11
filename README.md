@@ -30,3 +30,15 @@ make the scoring display work
 [x]clear round data between rounds
 [x]fix bugs with tracking who won round/game
 add other languages
+reconnect correctly when server restarts? probably not possible
+delete rooms with no connections
+[x]limit new animals to unused colors
+reject more than 6 players
+make tiebreaker only go to those that tied
+rename cloudflare apps/durable objects to make sense
+make the repo build everything at once/as desired with scripts
+make hummingbird wing flap
+cleanup player.js
+cleanup server.js
+don't let you join if you haven't typed a room code
+figure out if session can persist instead of periodically resetting
